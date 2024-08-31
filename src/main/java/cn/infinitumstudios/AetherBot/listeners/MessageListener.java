@@ -1,12 +1,13 @@
 package cn.infinitumstudios.AetherBot.listeners;
 
 import net.dv8tion.jda.api.entities.Message;
+import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
-import org.jetbrains.annotations.Nullable;
 import org.json.JSONArray;
 import org.json.JSONObject;
+import sun.security.provider.Sun;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -17,36 +18,81 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class CommandListener extends ListenerAdapter
+public class MessageListener extends ListenerAdapter
 {
     MessageChannel channel;
-    String apiKey, model, chatUrl, pictureUrl, mjUrl, prompt, clientID, r18ChannelID, catModel;
-    String r18CatPromptP1, r18CatPromptP2, r18CatPromptP3, r18CatPromptP4;
+    String ChatGPTAPIKey, MidjourneyAPIKey, IdeogramAPIKey, SunoAPIKey, RolePlayAPIKey;
+    String model;
+    String chatUrl;
+    String pictureUrl;
+    String listeningChannelID;
+    String mjUrl;
+    String prompt;
+    String clientID;
+    String catModel;
+    String catPrompt, catPrompt2;
+    String catUrl;
+    String ideogramUrl;
+    String ideogramModel;
+    String sunoUrl;
+    int maxHistory;
     List<String> whitelistedServer;
     JSONObject database;
     String patterStr = "yyyy-MM-dd HH:mm:ss";
     protected boolean isFixingBot = false;
-    Date serverStartTime;
+    long serverStartTime;
     boolean catPromptEnable;
-    public CommandListener(String apiKey, String model, String url, String mjUrl, String clientID, @Nullable String prompt, String catModel, Date serverStartTime){
-        this.apiKey = apiKey;
-        this.model = model;
-        this.chatUrl = url + "/chat/completions";
-        this.pictureUrl = url + "/images/generations";
-        this.prompt = prompt;
-        this.clientID = clientID;
-        this.catModel = catModel;
-        this.mjUrl = mjUrl + "/fast";
-        this.serverStartTime = serverStartTime;
+    public MessageListener(JSONObject config, long time){
         database = new JSONObject();
+
         database.put("mj", new JSONObject());
         database.put("mjByMissionID", new JSONObject());
+        database.put("ChatHistory", new JSONObject());
+        database.put("CatChatHistory", new JSONObject());
+
+        database.put("config", config);
+        database.put("suno", new JSONObject());
+        database.getJSONObject("suno").put("request", new JSONObject());
+
+        ChatGPTAPIKey = config.getJSONObject("AISetting").getString("ChatGPTAPIKey");
+        MidjourneyAPIKey = config.getJSONObject("AISetting").getString("MidJourneyAPIKey");
+        IdeogramAPIKey = config.getJSONObject("AISetting").getString("IdeogramAPIKey");
+        SunoAPIKey = config.getJSONObject("AISetting").getString("SunoAPIKey");
+        RolePlayAPIKey = config.getJSONObject("AISetting").getString("RolePlayGPTAPIKey");
+
+        model = config.getJSONObject("AISetting").getJSONObject("ChatGPT").getString("model");
+        chatUrl = config.getJSONObject("AISetting").getJSONObject("ChatGPT").getString("url");
+        pictureUrl = config.getJSONObject("AISetting").getJSONObject("PictureAI").getJSONObject("DALLE3").getString("url");
+        listeningChannelID = config.getString("ListeningChannelID");
+        mjUrl = config.getJSONObject("AISetting").getJSONObject("PictureAI").getJSONObject("MidJourney").getString("url");
+        prompt = config.getJSONObject("AISetting").getJSONObject("ChatGPT").getString("prompt");
+        clientID = config.getJSONObject("discord").getString("clientID");
+        catModel = config.getJSONObject("AISetting").getJSONObject("CatChat").getString("model");
+        catPrompt = config.getJSONObject("AISetting").getJSONObject("CatChat").getString("prompt1");
+        catPrompt2 = config.getJSONObject("AISetting").getJSONObject("CatChat").getString("prompt2");
+        catUrl = config.getJSONObject("AISetting").getJSONObject("CatChat").getString("url");
+        maxHistory = config.getJSONObject("AISetting").getInt("MaxHistory");
+        ideogramModel = config.getJSONObject("AISetting").getJSONObject("PictureAI").getJSONObject("Ideogram").getString("model");
+        ideogramUrl = config.getJSONObject("AISetting").getJSONObject("PictureAI").getJSONObject("Ideogram").getString("url");
+        sunoUrl = config.getJSONObject("suno").getString("url");
+
+        whitelistedServer = new ArrayList<>();
+        JSONArray wja = config.getJSONObject("discord").getJSONArray("whitelistedChannelID");
+        for (int i = 0;i < wja.length();i++){
+            whitelistedServer.add(wja.getString(i));
+        }
+
+        serverStartTime = time;
         catPromptEnable = false;
     }
 
     @Override
     public void onMessageReceived(MessageReceivedEvent event) {
         channel = event.getChannel();
+
+        if (event.getChannel().getId().equals(listeningChannelID)){
+            System.out.println(event.getAuthor().getEffectiveName() + ": " + event.getMessage().getContentRaw());
+        }
 
         if (!whitelistedServer.contains(channel.getId())){
             return;
@@ -77,11 +123,13 @@ public class CommandListener extends ListenerAdapter
             if (catPromptEnable){
                 catPromptEnable = false;
                 channel.sendMessage("猫娘模式关闭！").queue();
+                event.getGuild().modifyNickname(Objects.requireNonNull(event.getGuild().getMemberById(Long.parseLong(clientID))), "Aethers深井机器人").queue();
                 return;
             }
 
             catPromptEnable = true;
-            channel.sendMessage("猫粮模式(只r18频道可用)启动！").queue();
+            channel.sendMessage("猫娘模式启动！输入 !c <任何互动> 即可与我互动喵～").queue();
+            event.getGuild().modifyNickname(Objects.requireNonNull(event.getGuild().getMemberById(Long.parseLong(clientID))), "Aethers猫娘机器人").queue();
             return;
         }
 
@@ -95,7 +143,6 @@ public class CommandListener extends ListenerAdapter
             } else {
                 channel.sendMessage("Pong！Aether深井机器人在线！").queue();
             }
-            // Important to call .queue() on the RestAction returned by sendMessage(...)
         }
 
         if (content.equals("TD")){
@@ -139,7 +186,13 @@ public class CommandListener extends ListenerAdapter
                 return;
             }
             content = "testing connection";
-            String respond = openAIAPIPostRequest(chatUrl, getOpenAIChatRequestBody(content,message,prompt).toString(),apiKey,channel);
+
+            if (!database.getJSONObject("ChatHistory").has(message.getAuthor().getId())){
+                database.getJSONObject("ChatHistory").put(message.getAuthor().getId(), new JSONArray());
+            }
+
+            String respond = POSTRequest(chatUrl, getOpenAIChatRequestBody(content,prompt,database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId())).toString(),ChatGPTAPIKey,channel);
+
             if (respond == null) {
                 channel.sendMessage("测试-连接OpenAI API失败！").queue();
             } else {
@@ -149,52 +202,99 @@ public class CommandListener extends ListenerAdapter
         }
 
         if (content.startsWith("!chat ") || content.startsWith("!c ")) {
+
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 channel.sendMessage("此机器人正在调试中，无法使用").queue();
                 return;
             }
-            MessageChannel channel = event.getChannel();
 
             if (content.startsWith("!chat ")) content = content.replaceFirst("!chat ", "");
             if (content.startsWith("!c ")) content = content.replaceFirst("!c ", "");
 
+            // HTTP request
             String reply;
-            // https请求
-            if (!catPromptEnable) reply = openAIAPIPostRequest(chatUrl, getOpenAIChatRequestBody(content,message,prompt).toString(),apiKey,channel);
-            else if (channel.getId().equals(r18ChannelID) || channel.getId().equals("1164928327686037534")){
-                reply = openAIAPIPostRequest(chatUrl, getR18CatPromptBody(content, message).toString(),apiKey,channel);
+            if (catPromptEnable){
+                if (!database.getJSONObject("CatChatHistory").has(message.getAuthor().getId())){
+                    database.getJSONObject("CatChatHistory").put(message.getAuthor().getId(), new JSONArray());
+                }
+                reply = POSTRequest(chatUrl, getOpenAIChatRequestBody(content, catPrompt, database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId())).toString(),ChatGPTAPIKey,channel);
             } else {
-                channel.sendMessage("猫娘模式已开启，请在年龄限制文字频道使用！").queue();
-                channel.sendMessage("输入!cat 可以关闭猫娘模式").queue();
-                return;
+                if (!database.getJSONObject("ChatHistory").has(message.getAuthor().getId())){
+                    database.getJSONObject("ChatHistory").put(message.getAuthor().getId(), new JSONArray());
+                }
+                reply = POSTRequest(chatUrl, getOpenAIChatRequestBody(content, prompt, database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId())).toString(),RolePlayAPIKey,channel);
             }
 
             if (reply == null) {
                 channel.sendMessage("出现内部错误，指令执行失败").queue();
-                System.out.println("无效的返回值");
+                System.err.println("API请求数据返回无效值");
                 return;
             }
 
             try {
                 JSONObject replyJSON = new JSONObject(reply);
-
                 String output = replyJSON
-                        .getJSONArray("choices")
-                        .getJSONObject(0)
-                        .getJSONObject("message")
-                        .getString("content");
+                            .getJSONArray("choices")
+                            .getJSONObject(0)
+                            .getJSONObject("message")
+                            .getString("content");
 
                 if (output == null){
-                    channel.sendMessage("出现内部错误，指令执行失败,line170").queue();
+                    channel.sendMessage("出现内部错误，指令执行失败").queue();
                     return;
                 }
 
+                if (output.startsWith("抱歉") && catPromptEnable){
+                    channel.sendMessage("<@"+ message.getAuthor().getId() +"> 对不起，我不能满足这个请求，喵。").queue();
+                    return;
+                }
+
+                if (output.contains("<|endoftext|>")){
+                    output = output.replace("<|endoftext|>", "");
+                }
+
+                if (catPromptEnable){
+                    if (database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId()).length() == maxHistory){
+                        Random rand = new Random();
+                        int randNumber = rand.nextInt(26) + 5;
+                        database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId()).remove(randNumber * 2);
+                        database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId()).remove((randNumber * 2) + 1);
+                    }
+                    int index = database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId()).length();
+                    database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId()).put(index, new JSONObject());
+                    database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("role", "user");
+                    database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("content", content);
+
+                    index ++;
+                    database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId()).put(index, new JSONObject());
+                    database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("role", "assistant");
+                    database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("content", output);
+                } else {
+
+                    if (database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).length() == maxHistory){
+                        Random rand = new Random();
+                        int randNumber = rand.nextInt(26) + 5;
+                        database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).remove(randNumber * 2);
+                        database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).remove((randNumber * 2) + 1);
+                    }
+
+                    int index = database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).length();
+                    database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).put(index, new JSONObject());
+                    database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("role", "user");
+                    database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("content", content);
+
+                    index ++;
+                    database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).put(index, new JSONObject());
+                    database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("role", "assistant");
+                    database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("content", output);
+                }
+
+
                 channel.sendMessage("<@"+ message.getAuthor().getId() +"> " + output).queue();
-                System.out.println("Bot.ReplyMessage: " + output);
 
             } catch (Exception e) {
-                e.printStackTrace();
-                channel.sendMessage("出现内部错误，指令执行失败,line179").queue();
+                channel.sendMessage("出现内部错误，指令执行失败").queue();
+                throw e;
             }
         }
 
@@ -205,20 +305,22 @@ public class CommandListener extends ListenerAdapter
                 return;
             }
 
+            if (!database.getJSONObject("ChatHistory").has(message.getAuthor().getId())){
+                database.getJSONObject("ChatHistory").put(message.getAuthor().getId(), new JSONArray());
+            }
+
             if(content.contains("<@"+ clientID +">"))content = content.replaceAll("<@"+ clientID +">", "@Aethers深井机器人 ");
 
             // Post
             String reply = null;
 
-            if (!catPromptEnable) reply = openAIAPIPostRequest(chatUrl, getOpenAIChatRequestBody(content,message,prompt).toString(),apiKey,channel);
+            if (!catPromptEnable) reply = POSTRequest(chatUrl, getOpenAIChatRequestBody(content, prompt, database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId())).toString(),ChatGPTAPIKey,channel);
             else {
                 channel.sendMessage("猫娘模式只能通过 !c / !chat 开启对话，无法使用@").queue();
                 return;
             }
 
             if (reply == null) return;
-
-            System.out.println(reply);
 
             // to json object
             try {
@@ -234,13 +336,28 @@ public class CommandListener extends ListenerAdapter
                     return;
                 }
 
+                if (database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).length() == maxHistory){
+                    Random rand = new Random();
+                    int randNumber = rand.nextInt(26) + 5;
+                    database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).remove(randNumber * 2);
+                    database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).remove((randNumber * 2) + 1);
+                }
+                int index = database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).length();
+                database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).put(index, new JSONObject());
+                database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("role", "user");
+                database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("content", content);
+
+                index ++;
+                database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).put(index, new JSONObject());
+                database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("role", "assistant");
+                database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("content", output);
+
                 // result
                 channel.sendMessage("<@"+ message.getAuthor().getId() +"> " + output).queue();
-                System.out.println("Bot.ReplyMessage: " + output);
 
             } catch (Exception e) {
-                e.printStackTrace();
                 channel.sendMessage("出现内部错误，指令执行失败").queue();
+                throw e;
             }
         }
 
@@ -261,9 +378,9 @@ public class CommandListener extends ListenerAdapter
 
             channel.sendMessage("收到请求，正在使用DALL·E 3生成图片中...").queue();
             try {
-                String respond = openAIAPIPostRequest(pictureUrl, getOpenAIImageRequestBody(content).toString(), apiKey, channel);
+                String respond = POSTRequest(pictureUrl, getOpenAIImageRequestBody(content).toString(),ChatGPTAPIKey, channel);
                 if (respond == null){
-                    channel.sendMessage("出现内部错误，指令执行失败(respond is null,line198)").queue();
+                    channel.sendMessage("出现内部错误，指令执行失败(Request respond is null)").queue();
                     return;
                 }
                 JSONObject respondJSON = new JSONObject(respond);
@@ -273,8 +390,8 @@ public class CommandListener extends ListenerAdapter
                         .getString("url");
                 channel.sendMessage("<@"+message.getAuthor().getId()+"> [这是生成的图片: ](" + pictureURL + ")").queue();
             } catch (Exception e){
-                channel.sendMessage("出现内部错误，指令执行失败(Respond -> JSON, line208)").queue();
-                e.printStackTrace();
+                channel.sendMessage("出现内部错误，指令执行失败(Respond -> JSON)").queue();
+                throw e;
             }
         }
 
@@ -293,9 +410,9 @@ public class CommandListener extends ListenerAdapter
             }
 
             channel.sendMessage("收到请求，正在使用MidJourney生成图片中...").queue();
-            String postReply = openAIAPIPostRequest(mjUrl + "/mj/submit/imagine", getModJourneyRequestBody(content).toString(), apiKey, channel);
+            String postReply = POSTRequest(mjUrl + "/mj/submit/imagine", getModJourneyRequestBody(content).toString(), MidjourneyAPIKey, channel);
             if (postReply == null){
-                channel.sendMessage("出现内部错误，指令执行失败(Post,line229)").queue();
+                channel.sendMessage("出现内部错误，指令执行失败(Post)").queue();
                 return;
             }
 
@@ -318,19 +435,18 @@ public class CommandListener extends ListenerAdapter
                 return;
             }
             if (database.getJSONObject("mj").has(message.getAuthor().getId())){
-                String getResponse = RESTAPIGetRequest(mjUrl + "/mj/task/"+ database.getJSONObject("mj").getJSONObject(message.getAuthor().getId()).getString("MissionID") +"/fetch", apiKey, channel);
+                String getResponse = GETRequest(mjUrl + "/mj/task/"+ database.getJSONObject("mj").getJSONObject(message.getAuthor().getId()).getString("MissionID") +"/fetch", MidjourneyAPIKey, channel);
                 JSONObject jsonRespond = null;
-                if (getResponse == null){
-                    channel.sendMessage("出现内部错误，指令执行失败(GET,line246)").queue();
-                    return;
-                } else {
-                    jsonRespond = new JSONObject(getResponse);
-                }
+                jsonRespond = new JSONObject(getResponse);
                 String pictureUrl = jsonRespond.getString("imageUrl");
                 if (Objects.equals(pictureUrl, "")){
+
+                    DateFormat bjDateFormat = new SimpleDateFormat(patterStr);
+                    bjDateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
+
                     channel.sendMessage("<@"+ message.getAuthor().getId() +"> 图片正在生成中: "+
-                            "\n请求时间: " + database.getJSONObject("mj").getJSONObject(message.getAuthor().getId()).getString("MissionID") +
-                            "\n任务ID: " + database.getJSONObject("mj").getJSONObject(message.getAuthor().getId()).getString("StartTime")
+                            "\n请求时间: " + bjDateFormat.format(database.getJSONObject("mj").getJSONObject(message.getAuthor().getId()).getLong("StartTime")) +
+                            "\n任务ID: " + database.getJSONObject("mj").getJSONObject(message.getAuthor().getId()).getString("MissionID")
                     ).queue();
                 } else {
                     channel.sendMessage("<@"+ message.getAuthor().getId() +">" + "[这是MidJourney生成的图片: ]("+ jsonRespond.getString("imageUrl") +")").queue();
@@ -338,7 +454,7 @@ public class CommandListener extends ListenerAdapter
             } else {
                 DateFormat bjDateFormat = new SimpleDateFormat(patterStr);
                 bjDateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
-                channel.sendMessage("你最近没有请求生成任何图片（上一次重启后: "+ bjDateFormat.format(serverStartTime.getTime()) +"）").queue();
+                channel.sendMessage("你最近没有请求生成任何图片（上一次重启后: "+ bjDateFormat.format(serverStartTime) +"）").queue();
             }
         }
 
@@ -350,7 +466,7 @@ public class CommandListener extends ListenerAdapter
             content = content.replaceFirst("!mjget ", "");
             JSONObject getRespond;
             try {
-                getRespond = new JSONObject(RESTAPIGetRequest(mjUrl + "/mj/task/"+ content +"/fetch", apiKey, channel));
+                getRespond = new JSONObject(Objects.requireNonNull(GETRequest(mjUrl + "/mj/task/" + content + "/fetch", MidjourneyAPIKey, channel)));
             } catch (Exception e){
                 channel.sendMessage("向MidJourney发出GET请求时出现了问题").queue();
                 return;
@@ -373,46 +489,228 @@ public class CommandListener extends ListenerAdapter
 
         }
 
-        if (content.equals("!aethersversion")) {
+        if (content.startsWith("!ideogram ") || content.startsWith("!idg ")){
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 channel.sendMessage("此机器人正在调试中，无法使用").queue();
                 return;
             }
-            channel.sendMessage(
-                    "版本 1.1.5\n"+
-                            "该版本为BUG修复和优化\n" +
-                            "新增了 !help 指令菜单\n"+
-                            "1.1.0至该版本主要更新内容：\n"+
-                            "1. 增加聊天频道白名单设置（防止滥用）\n"+
-                            "2. !mjget - 可以获取你最近一次的MidJourney生成图片\n"+
-                            "3. 猫娘Prompt (需在年龄限制频道使用)，可输入\"!cat\"进行切换\n"+
-                            "4. 新增AI画图 - !dalle3 提示词 (!d3 提示词)\n"+
-                            "5. 新增AI画图 - !midjourney 提示词 (!mj 提示词)"
-                    ).queue();
+
+            if (content.startsWith("!ideogram ")) content = content.replaceFirst("!ideogram ", "");
+            if (content.startsWith("!idg ")) content = content.replaceFirst("!idg ", "");
+
+            channel.sendMessage("图片正在生成中...").queue();
+            channel.sendMessage("提示词：" + content).queue();
+
+            String request = POSTRequest(ideogramUrl + "/generate", getIdeogramRequestBody(content).toString(), IdeogramAPIKey, channel);
+            JSONObject jsonResponse = new JSONObject(request);
+
+            channel.sendMessage("<@" + message.getAuthor().getId() + "> "+"[这是生成的图片: ]("+
+                    jsonResponse
+                            .getJSONArray("data")
+                            .getJSONObject(0)
+                            .getString("url") +")")
+                    .queue();
         }
 
+        // Music Generation
+        if (content.startsWith("!suno ")){
+            if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
+                channel.sendMessage("此机器人正在调试中，无法使用").queue();
+                return;
+            }
+            content = content.replaceFirst("!", "");
+            String[] args = content.split("\\s+");
 
+            if (Objects.equals(args[1], "lyrics")){
+                if (Objects.equals(args[2], "create")){
+                    if (args[3].isEmpty()){
+                        channel.sendMessage("指令使用错误，请使用/suno 指令查看suno可用的指令").queue();
+                        return;
+                    }
 
-        if (content.equals("!help")){
+                    String respond = POSTRequest(sunoUrl + "/generate/lyrics", "{\"prompt\":\"" + args[3] + "\"}", SunoAPIKey, channel);
+
+                    if (respond == null){
+                        return;
+                    }
+
+                    JSONObject jsonResponse = new JSONObject(respond);
+                    channel.sendMessage("<@" + message.getAuthor().getId() + "> 这是歌词ID :" + jsonResponse.getString("id")).queue();
+                    channel.sendMessage("如果想要获得歌词内容，请发送!suno lyrics get <歌词ID>").queue();
+                    return;
+                } else if (Objects.equals(args[2], "get")){
+                    if (args[3].isEmpty()){
+                        channel.sendMessage("指令使用错误，请使用/suno 指令查看suno可用的指令").queue();
+                        return;
+                    }
+
+                    String respond = GETRequest(sunoUrl + "/lyrics/" + args[3], SunoAPIKey, channel);
+
+                    if (respond == null){
+                        return;
+                    }
+
+                    JSONObject jsonResponse = new JSONObject(respond);
+
+                    if (jsonResponse.has("error")){
+                        channel.sendMessage(jsonResponse.getJSONObject("error").getString("message") + "!").queue();
+                        return;
+                    }
+
+                    if (!Objects.equals(jsonResponse.getString("status"), "complete")){
+                        channel.sendMessage("歌词未生成完毕！").queue();
+                        return;
+                    }
+
+                    channel.sendMessage("<@" + message.getAuthor().getId() +"> 这是你生成的歌词：").queue();
+                    channel.sendMessage(jsonResponse.getString("text")).queue();
+                }
+            }
+            else if (Objects.equals(args[1], "create")){
+                UUID requestUUID = UUID.randomUUID();
+                database.getJSONObject("suno").getJSONObject("request").put(requestUUID.toString(), new JSONObject());
+                database.getJSONObject("suno").getJSONObject("request").getJSONObject(requestUUID.toString()).put("prompt", "");
+                database.getJSONObject("suno").getJSONObject("request").getJSONObject(requestUUID.toString()).put("title", "");
+                database.getJSONObject("suno").getJSONObject("request").getJSONObject(requestUUID.toString()).put("mv", "chirp-v3-5");
+                database.getJSONObject("suno").getJSONObject("request").getJSONObject(requestUUID.toString()).put("tags", "");
+
+                channel.sendMessage("<@" + message.getAuthor().getId() + "> 已创建新的待生成空白歌曲，请设置后再发送请求！").queue();
+                channel.sendMessage("待生成歌曲UUID: " + requestUUID).queue();
+            }
+            else if (Objects.equals(args[1], "set")){
+                if (Objects.equals(args[2], "title")){
+                    if (args[3].isEmpty() || args[4].isEmpty()){
+                        channel.sendMessage("指令使用错误，请使用/suno 指令查看suno可用的指令").queue();
+                        return;
+                    }
+
+                    if (!database.getJSONObject("suno").getJSONObject("request").has(args[3])){
+                        channel.sendMessage("未寻找到该歌曲任务！").queue();
+                        return;
+                    }
+
+                    database.getJSONObject("suno").getJSONObject("request").getJSONObject(args[3]).put("title", args[4]);
+                    channel.sendMessage("歌曲任务标题设置成功！").queue();
+                }
+                if (Objects.equals(args[2], "lyrics")){
+                    if (args[3].isEmpty() || args[4].isEmpty()){
+                        channel.sendMessage("指令使用错误，请使用/suno 指令查看suno可用的指令").queue();
+                        return;
+                    }
+
+                    if (!database.getJSONObject("suno").getJSONObject("request").has(args[3])){
+                        channel.sendMessage("未寻找到该歌曲任务！").queue();
+                        return;
+                    }
+
+                    String respond = GETRequest(sunoUrl + "/lyrics/" + args[4], SunoAPIKey, channel);
+
+                    if (respond == null){
+                        return;
+                    }
+
+                    JSONObject jsonResponse = new JSONObject(respond);
+
+                    if (jsonResponse.has("error")){
+                        channel.sendMessage(jsonResponse.getJSONObject("error").getString("message") + "!").queue();
+                        return;
+                    }
+
+                    if (!Objects.equals(jsonResponse.getString("status"), "complete")){
+                        channel.sendMessage("歌词未生成完毕！").queue();
+                        return;
+                    }
+
+                    database.getJSONObject("suno").getJSONObject("request").getJSONObject(args[3]).put("prompt", jsonResponse.getString("text"));
+
+                    channel.sendMessage("歌曲任务歌词设置成功！").queue();
+
+                }
+                if (Objects.equals(args[2], "tags")){
+                    if (args[3].isEmpty() || args[4].isEmpty()){
+                        channel.sendMessage("指令使用错误，请使用/suno 指令查看suno可用的指令").queue();
+                        return;
+                    }
+
+                    if (!database.getJSONObject("suno").getJSONObject("request").has(args[3])){
+                        channel.sendMessage("未寻找到该歌曲任务！").queue();
+                        return;
+                    }
+
+                    database.getJSONObject("suno").getJSONObject("request").getJSONObject(args[3]).put("tags", args[4]);
+                    channel.sendMessage("歌曲任务曲风设置成功！").queue();
+                }
+            }
+            else if (Objects.equals(args[1], "generate")){
+                if (args[2].isEmpty()){
+                    channel.sendMessage("指令使用错误，请使用/suno 指令查看suno可用的指令").queue();
+                    return;
+                }
+
+                if (!database.getJSONObject("suno").getJSONObject("request").has(args[2])){
+                    channel.sendMessage("未寻找到该歌曲任务！").queue();
+                    return;
+                }
+
+                String respond = POSTRequest(sunoUrl + "/generate", database.getJSONObject("suno").getJSONObject("request").getJSONObject(args[2]).toString(), SunoAPIKey, channel);
+                if (respond == null){
+                    return;
+                }
+                JSONObject jsonResponse = new JSONObject(respond);
+                channel.sendMessage("<@"+ message.getAuthor().getId() +">这是你生成的最终歌曲ID (共两首)：").queue();
+                channel.sendMessage("第一首: " + jsonResponse.getJSONArray("clips").getJSONObject(0).getString("id")).queue();
+                channel.sendMessage("第二首: " + jsonResponse.getJSONArray("clips").getJSONObject(1).getString("id")).queue();
+            }
+            else if (Objects.equals(args[1], "get")){
+
+                if (args[2].isEmpty()){
+                    channel.sendMessage("指令使用错误，请使用/suno 指令查看suno可用的指令").queue();
+                    return;
+                }
+
+                String respond = GETRequest(sunoUrl + "/feed/" + args[2], SunoAPIKey, channel);
+                if (respond == null){
+                    return;
+                }
+
+                JSONArray jsonResponse = new JSONArray(respond);
+                channel.sendMessage("<@" + message.getAuthor().getId() + "> 这是生成结果：\n"+
+                        "## 歌曲名称: " + jsonResponse.getJSONObject(0).getString("title") + "\n"+
+                        "歌曲链接: [点击我听歌]("+ jsonResponse.getJSONObject(0).getString("audio_url") +")\n"+
+                        "大封面: [点击查看]("+ jsonResponse.getJSONObject(0).getString("image_large_url") +")\n"+
+                        "## 歌词: \n"+
+                        jsonResponse.getJSONObject(0).getJSONObject("metadata").getString("prompt") + "\n"+
+                        "## 封面："
+                ).queue();
+            }
+
+        }
+
+        if (content.equals("!newconversation") || content.equals("!nc")){
+            if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
+                channel.sendMessage("此机器人正在调试中，无法使用").queue();
+                return;
+            }
+            if (catPromptEnable){
+                database.getJSONObject("CatChatHistory").put(message.getAuthor().getId(), new JSONArray());
+                channel.sendMessage("<@" + message.getAuthor().getId() + "> 已开启新的猫娘聊天对话！").queue();
+            } else {
+                database.getJSONObject("ChatHistory").put(message.getAuthor().getId(), new JSONArray());
+                channel.sendMessage("<@" + message.getAuthor().getId() + "> 已开启新的ChatGPT聊天对话！").queue();
+            }
+        }
+
+        if (content.equals("!aethersversion")) {
             channel.sendMessage(
-                    "<@" + message.getAuthor().getId() +"> \n"+
-                    "这是 Aethers深井机器人 的指令菜单\n"+
-                    "!id - 获取该频道的id\n"+
-                    "!ping - 获取机器人是否在线 (如果不在线将不会发送信息)\n"+
-                    "!testconnection - 测试连接至AI API\n"+
-                    "!chat | !c | <@" + clientID +"> - 开启 ChatGPT/Claude-3 AI聊天\n"+
-                    "!cat - 启动/关闭猫娘模式 (启用后只能在年龄限制频道使用，并且只能用 !c | !chat 呼唤)\n"+
-                    "!dalle3 <提示词> | !d3 <提示词> - 使用 DALL·E 3 生成一张图片 (自动返回生成结果)\n"+
-                    "!midjourney <提示词> | !mj <提示词> - 使用 MidJourney 生成一张图片 (需要手动查询结果)\n"+
-                    "!mjget - 查询最近一次MidJourney生成的图片\n"+
-                    "!mjget <任务id> - 根据任务ID查询生成的图片\n"+
-                    "!aethersversion - 查看当前机器人版本\n"+
-                    "提示: !ping 还能知道目前猫娘模式是否开启哦～"
-            ).queue();
+                    "版本 1.3.0\n"+
+                            "增加了Suno音乐生成AI\n"+
+                            "增加了新的图片生成模型：ideogram, 输入 !idg <提示词> 即可调用\n" +
+                            "输入/help 即可获取完整指令列表"
+                    ).queue();
         }
     }
 
-    public static String openAIAPIPostRequest(String url, String body, String apiKey, MessageChannel channel) {
+    public String POSTRequest(String url, String body, String apiKey, MessageChannel channel) {
         StringBuilder result = new StringBuilder();
         BufferedReader in = null;
         PrintWriter out = null;
@@ -438,8 +736,8 @@ public class CommandListener extends ListenerAdapter
                 result.append(line);
             }
         } catch (Exception e) {
-            channel.sendMessage("在向Open AI API请求数据时发生错误，请联系Bot管理员!").queue();;
-            System.out.println("ERROR 在向Open AI API请求数据时发生错误");
+            channel.sendMessage("在向API请求数据时发生错误，请联系Bot管理员!").queue();;
+            System.err.println("ERROR 在向API请求数据时发生错误");
             e.printStackTrace();
             return null;
         }
@@ -447,8 +745,8 @@ public class CommandListener extends ListenerAdapter
         return result.toString();
     }
 
-    public static String RESTAPIGetRequest(String url, String apiKey, MessageChannel channel){
-        String result = "";
+    public static String GETRequest(String url, String apiKey, MessageChannel channel){
+        StringBuilder result = new StringBuilder();
         BufferedReader in = null;
         try {
             URL realUrl = new URL(url);
@@ -459,27 +757,22 @@ public class CommandListener extends ListenerAdapter
             connection.setRequestProperty("connection", "Keep-Alive");
             connection.setRequestProperty("user-agent",
                     "Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1;SV1)");
-            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            connection.setRequestProperty("Content-Type", "application/json");
             connection.setRequestProperty("Authorization", "Bearer " + apiKey);
             // 建立实际的连接
             connection.connect();
-            // 获取所有响应头字段
-            Map<String, List<String>> map = connection.getHeaderFields();
-            // 遍历所有的响应头字段
-            for (String key : map.keySet()) {
-                System.out.println(key + "--->" + map.get(key));
-            }
             // 定义 BufferedReader输入流来读取URL的响应
             in = new BufferedReader(new InputStreamReader(
                     connection.getInputStream()));
             String line;
             while ((line = in.readLine()) != null) {
-                result += line;
+                result.append(line);
             }
         } catch (Exception e) {
             channel.sendMessage("在发送GET请求时发生错误，请联系Bot管理员!").queue();
-            System.out.println("发送GET请求出现异常！" + e);
+            System.err.println("发送GET请求出现异常！" + e);
             e.printStackTrace();
+            return null;
         }
         // 使用finally块来关闭输入流
         finally {
@@ -491,16 +784,14 @@ public class CommandListener extends ListenerAdapter
                 e2.printStackTrace();
             }
         }
-        return result;
-
+        return result.toString();
     }
 
-    public JSONObject getOpenAIChatRequestBody(String sendContent, Message message, String prompt){
+    public JSONObject getOpenAIChatRequestBody(String sendContent, String prompt, JSONArray chatHistory){
 
         JSONObject inputJSON = new JSONObject();
-
-        if (catPromptEnable) inputJSON.put("model", catModel);
-        else inputJSON.put("model", model);
+        if (!catPromptEnable) inputJSON.put("model", model);
+        else inputJSON.put("model", catModel);
 
         inputJSON.put("max_tokens", 1200);
         inputJSON.put("temperature", 0.8);
@@ -508,59 +799,29 @@ public class CommandListener extends ListenerAdapter
         JSONArray messages = new JSONArray();
         JSONObject user = new JSONObject();
         JSONObject system = new JSONObject();
-
-        user.put("role", "user");
-        user.put("content", "来自用户\""+ message.getAuthor().getName() +"\"的信息: " +sendContent);
+        JSONObject sys2 = new JSONObject();
 
         system.put("role", "system");
-        system.put("content", prompt);
-
-        messages.put(system);
-        messages.put(user);
-
-        inputJSON.put("messages", messages);
-
-        return inputJSON;
-
-    }
-
-    public JSONObject getR18CatPromptBody(String sendContent, Message message){
-
-        JSONObject inputJSON = new JSONObject();
-
-        inputJSON.put("model", model);
-        inputJSON.put("max_tokens", 1200);
-        inputJSON.put("temperature", 0.8);
-
-        JSONArray messages = new JSONArray();
-        JSONObject user = new JSONObject();
-        JSONObject system1 = new JSONObject();
-        JSONObject system2 = new JSONObject();
-        JSONObject system3 = new JSONObject();
-        JSONObject system4 = new JSONObject();
-
-        system1.put("role", "system");
-        system1.put("content", r18CatPromptP1);
-
-        system2.put("role", "system");
-        system2.put("content", r18CatPromptP2);
-
-        system3.put("role", "system");
-        system3.put("content", r18CatPromptP3);
-
-        system4.put("role", "system");
-        system4.put("content", r18CatPromptP4);
+        if (!catPromptEnable){
+            system.put("content", prompt);
+        } else {
+            system.put("content", catPrompt);
+            sys2.put("role", "system");
+            sys2.put("content", catPrompt2);
+        }
 
         user.put("role", "user");
-        user.put("content", "来自用户\""+ message.getAuthor().getName() +"\"的信息: " +sendContent);
+        user.put("content", sendContent);
 
-        messages.put(system1);
-        messages.put(system2);
-        messages.put(system3);
-        messages.put(system4);
+        messages.put(system);
+        if (catPromptEnable) messages.put(sys2);
 
+        if (!chatHistory.isEmpty()){
+            for (Object jsObj : chatHistory){
+                messages.put(jsObj);
+            }
+        }
         messages.put(user);
-
         inputJSON.put("messages", messages);
 
         return inputJSON;
@@ -596,26 +857,33 @@ public class CommandListener extends ListenerAdapter
 
     }
 
-    public String getCurrentTime(){
+    public JSONObject getIdeogramRequestBody(String prompt){
+        JSONObject output = new JSONObject();
+
+        Random random = new Random();
+        int seed = random.nextInt(2147483647);
+
+        output.put("image_request", new JSONObject());
+
+        output.getJSONObject("image_request").put("model", ideogramModel);
+        output.getJSONObject("image_request").put("magic_prompt_option", "AUTO");
+        output.getJSONObject("image_request").put("prompt", prompt);
+        output.getJSONObject("image_request").put("aspect_ratio", "ASPECT_16_9");
+        output.getJSONObject("image_request").put("seed", seed);
+        
+        return output;
+    }
+
+    public long getCurrentTime(){
         Date currentTimeMili = Calendar.getInstance(Locale.CHINA).getTime();
-        DateFormat bjDateFormat = new SimpleDateFormat(patterStr);
-        bjDateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
-        return bjDateFormat.format(currentTimeMili.getTime());
+        return currentTimeMili.getTime();
     }
 
     public void setIsFixingBot(boolean type){
         isFixingBot = type;
     }
 
-    public void setWhitelistChannel(List<String> channelIDList, String r18ChannelID){
-        this.whitelistedServer = channelIDList;
-        this.r18ChannelID = r18ChannelID;
-    }
-
-    public void setR18CatPrompt(String part1, String part2, String part3, String part4){
-        r18CatPromptP1 = part1;
-        r18CatPromptP2 = part2;
-        r18CatPromptP3 = part3;
-        r18CatPromptP4 = part4;
+    public void setListeningChannel(String channelID){
+        this.listeningChannelID = channelID;
     }
 }
