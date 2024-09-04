@@ -5,7 +5,7 @@ plugins {
 
 application.mainClass = "cn.infinitumstudios.AetherBot.Main"
 group = "cn.infinitumstudios.AetherBot"
-version = "1.3.0"
+version = "1.3.1"
 
 val jdaVersion = "5.0.2"
 

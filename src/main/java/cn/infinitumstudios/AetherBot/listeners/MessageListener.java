@@ -706,7 +706,8 @@ public class MessageListener extends ListenerAdapter
 
         if (content.equals("!aethersversion")) {
             channel.sendMessage(
-                    "版本 1.3.0\n"+
+                    "版本 1.3.1\n"+
+                            "当文本长度大于2000时发送回复txt文件\n"+
                             "增加了Suno音乐生成AI\n"+
                             "增加了新的图片生成模型：ideogram, 输入 !idg <提示词> 即可调用\n" +
                             "输入/help 即可获取完整指令列表"
