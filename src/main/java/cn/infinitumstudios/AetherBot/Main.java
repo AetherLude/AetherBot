@@ -6,8 +6,6 @@ import cn.infinitumstudios.AetherBot.commands.CommandManager;
 import cn.infinitumstudios.AetherBot.listeners.MessageListener;
 import net.dv8tion.jda.api.JDA;
 import net.dv8tion.jda.api.JDABuilder;
-import net.dv8tion.jda.api.entities.Guild;
-import net.dv8tion.jda.api.entities.Member;
 import net.dv8tion.jda.api.requests.GatewayIntent;
 import org.json.JSONArray;
 import org.json.JSONObject;

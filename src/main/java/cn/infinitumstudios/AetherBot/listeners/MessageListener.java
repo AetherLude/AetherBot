@@ -1,19 +1,18 @@
 package cn.infinitumstudios.AetherBot.listeners;
 
 import net.dv8tion.jda.api.entities.Message;
-import net.dv8tion.jda.api.entities.Role;
 import net.dv8tion.jda.api.entities.channel.middleman.MessageChannel;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import net.dv8tion.jda.api.utils.FileUpload;
 import org.json.JSONArray;
 import org.json.JSONObject;
-import sun.security.provider.Sun;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -106,6 +105,7 @@ public class MessageListener extends ListenerAdapter
         if (event.getAuthor().isBot() && !content.equals("我上早八")) return;
 
         if (content.equals("!id")){
+            // 请把此处修改为你的名字
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 channel.sendMessage("此机器人正在调试中，无法使用").queue();
                 return;
@@ -114,7 +114,7 @@ public class MessageListener extends ListenerAdapter
         }
 
         if (content.equals("!cat")){
-
+            // 请把此处修改为你的名字
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 channel.sendMessage("此机器人正在调试中，无法使用").queue();
                 return;
@@ -134,6 +134,7 @@ public class MessageListener extends ListenerAdapter
         }
 
         if (content.equals("!ping")) {
+            // 请把此处修改为你的名字
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 channel.sendMessage("此机器人正在调试中，无法使用").queue();
                 return;
@@ -146,6 +147,7 @@ public class MessageListener extends ListenerAdapter
         }
 
         if (content.equals("TD")){
+            // 请把此处修改为你的名字
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 return;
             }
@@ -153,6 +155,7 @@ public class MessageListener extends ListenerAdapter
         }
 
         if (content.equals("R")){
+            // 请把此处修改为你的名字
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 return;
             }
@@ -160,6 +163,7 @@ public class MessageListener extends ListenerAdapter
         }
 
         if (content.equals("我上早八")){
+            // 请把此处修改为你的名字
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 return;
             }
@@ -167,6 +171,7 @@ public class MessageListener extends ListenerAdapter
         }
 
         if (content.equals("6")){
+            // 请把此处修改为你的名字
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 return;
             }
@@ -174,35 +179,16 @@ public class MessageListener extends ListenerAdapter
         }
 
         if (content.equals("666")){
+            // 请把此处修改为你的名字
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 return;
             }
             channel.sendMessage("999").queue();
         }
 
-        if (content.startsWith("!testconnection") || content.startsWith("!tc")) {
-            if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
-                channel.sendMessage("此机器人正在调试中，无法使用").queue();
-                return;
-            }
-            content = "testing connection";
-
-            if (!database.getJSONObject("ChatHistory").has(message.getAuthor().getId())){
-                database.getJSONObject("ChatHistory").put(message.getAuthor().getId(), new JSONArray());
-            }
-
-            String respond = POSTRequest(chatUrl, getOpenAIChatRequestBody(content,prompt,database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId())).toString(),ChatGPTAPIKey,channel);
-
-            if (respond == null) {
-                channel.sendMessage("测试-连接OpenAI API失败！").queue();
-            } else {
-                channel.sendMessage("测试-连接OpenAI API成功！").queue();
-            }
-
-        }
-
         if (content.startsWith("!chat ") || content.startsWith("!c ")) {
 
+            // 请把此处修改为你的名字
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 channel.sendMessage("此机器人正在调试中，无法使用").queue();
                 return;
@@ -232,6 +218,7 @@ public class MessageListener extends ListenerAdapter
             }
 
             try {
+                // 此处请根据API文档进行修改！
                 JSONObject replyJSON = new JSONObject(reply);
                 String output = replyJSON
                             .getJSONArray("choices")
@@ -253,6 +240,7 @@ public class MessageListener extends ListenerAdapter
                     output = output.replace("<|endoftext|>", "");
                 }
 
+                // 历史聊天记录
                 if (catPromptEnable){
                     if (database.getJSONObject("CatChatHistory").getJSONArray(message.getAuthor().getId()).length() == maxHistory){
                         Random rand = new Random();
@@ -289,17 +277,25 @@ public class MessageListener extends ListenerAdapter
                     database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("content", output);
                 }
 
-
-                channel.sendMessage("<@"+ message.getAuthor().getId() +"> " + output).queue();
+                if (output.length() >= 2000){
+                    longMessage(output, channel, message.getAuthor().getId());
+                } else {
+                    channel.sendMessage("<@"+ message.getAuthor().getId() +"> " + output).queue();
+                }
 
             } catch (Exception e) {
                 channel.sendMessage("出现内部错误，指令执行失败").queue();
-                throw e;
+                try {
+                    throw e;
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
             }
         }
 
         if (content.contains("Aethers深井机器人") || content.contains("<@"+ clientID +">")){
 
+            // 请把此处修改为你的名字
             if (!message.getAuthor().getName().equals("alpinecore_") && isFixingBot){
                 channel.sendMessage("此机器人正在调试中，无法使用").queue();
                 return;
@@ -353,11 +349,19 @@ public class MessageListener extends ListenerAdapter
                 database.getJSONObject("ChatHistory").getJSONArray(message.getAuthor().getId()).getJSONObject(index).put("content", output);
 
                 // result
-                channel.sendMessage("<@"+ message.getAuthor().getId() +"> " + output).queue();
+                if (output.length() >= 2000){
+                    longMessage(output, channel, message.getAuthor().getId());
+                } else {
+                    channel.sendMessage("<@"+ message.getAuthor().getId() +"> " + output).queue();
+                }
 
             } catch (Exception e) {
                 channel.sendMessage("出现内部错误，指令执行失败").queue();
-                throw e;
+                try {
+                    throw e;
+                } catch (IOException ex) {
+                    throw new RuntimeException(ex);
+                }
             }
         }
 
@@ -885,5 +889,23 @@ public class MessageListener extends ListenerAdapter
 
     public void setListeningChannel(String channelID){
         this.listeningChannelID = channelID;
+    }
+
+    public void longMessage(String message, MessageChannel channel, String senderID) throws IOException {
+        File file = new File("./TempMessageFile.txt");
+
+        if (file.exists()) {
+            // 如果已存在,删除旧文件
+            file.delete();
+        }
+        file.createNewFile();
+
+        Writer write = new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8);
+        write.write(message);
+        write.flush();
+        write.close();
+
+        FileUpload files = FileUpload.fromData(file, "message.txt");
+        channel.sendMessage("<@" + senderID + ">").addFiles(files);
     }
 }
