@@ -907,6 +907,6 @@ public class MessageListener extends ListenerAdapter
         write.close();
 
         FileUpload files = FileUpload.fromData(file, "message.txt");
-        channel.sendMessage("<@" + senderID + ">").addFiles(files);
+        channel.sendMessage("<@" + senderID + ">").addFiles(files).queue();
     }
 }
