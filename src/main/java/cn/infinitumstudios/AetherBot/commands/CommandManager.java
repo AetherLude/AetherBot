@@ -81,4 +81,8 @@ public class CommandManager extends ListenerAdapter {
             ).queue();
         }
     }
+
+    public void reloadConfig(JSONObject config){
+        this.config = config;
+    }
 }

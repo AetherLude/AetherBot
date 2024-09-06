@@ -55,9 +55,21 @@ public class Main {
         api.addEventListener(messageListener, commandManager);
         api.awaitReady();
 
-        for (Object s : config.getJSONObject("discord").getJSONArray("whitelistedChannelID")) {
-            Objects.requireNonNull(api.getTextChannelById((String) s)).getGuild().modifyNickname(Objects.requireNonNull(Objects.requireNonNull(api.getTextChannelById((String) s)).getGuild().getMemberById(config.getJSONObject("discord").getString("clientID"))), "Aethers深井机器人").queue();
+        try{
+            for (Object s : config.getJSONObject("discord").getJSONArray("whitelistedChannelID")) {
+                Objects.requireNonNull(
+                                api.getTextChannelById(s.toString()))
+                        .getGuild()
+                        .modifyNickname(Objects.requireNonNull(Objects.requireNonNull(api.getTextChannelById(s.toString()))
+                                        .getGuild()
+                                        .getMemberById(config.getJSONObject("discord").getString("clientID"))),
+                                "Aethers深井机器人").queue();
+            }
+        } catch (Exception e){
+            System.err.println("[Error] 在修改机器人名称的时候出现问题");
+            e.printStackTrace();
         }
+
 
         while (true){
             String input = console.readLine();
@@ -66,6 +78,10 @@ public class Main {
                     input = input.replaceFirst("!setchannel ", "");
                     config.put("ListeningChannelID", input);
                     messageListener.setListeningChannel(input);
+                } else if (input.equals("!reload")){
+                    JSONObject reloadConfig = new JSONObject(readfile(new File("./config.json")));
+                    commandManager.reloadConfig(reloadConfig);
+                    messageListener.reloadConfig(reloadConfig);
                 }
             } else {
                 Objects.requireNonNull(api.getTextChannelById(config.getString("ListeningChannelID"))).sendMessage(input).queue();

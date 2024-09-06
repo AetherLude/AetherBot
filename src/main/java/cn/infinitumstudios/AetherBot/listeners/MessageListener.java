@@ -706,7 +706,9 @@ public class MessageListener extends ListenerAdapter
 
         if (content.equals("!aethersversion")) {
             channel.sendMessage(
-                    "版本 1.3.1\n"+
+                    "版本 1.3.2\n"+
+                            "问题修复\n"+
+                            "过往版本更新：\n"+
                             "当文本长度大于2000时发送回复txt文件\n"+
                             "增加了Suno音乐生成AI\n"+
                             "增加了新的图片生成模型：ideogram, 输入 !idg <提示词> 即可调用\n" +
@@ -900,7 +902,6 @@ public class MessageListener extends ListenerAdapter
             file.delete();
         }
         file.createNewFile();
-
         Writer write = new OutputStreamWriter(Files.newOutputStream(file.toPath()), StandardCharsets.UTF_8);
         write.write(message);
         write.flush();
@@ -908,5 +909,40 @@ public class MessageListener extends ListenerAdapter
 
         FileUpload files = FileUpload.fromData(file, "message.txt");
         channel.sendMessage("<@" + senderID + ">").addFiles(files).queue();
+        file.delete();
+    }
+
+    public void reloadConfig(JSONObject config){
+
+        database.put("config", config);
+
+        ChatGPTAPIKey = config.getJSONObject("AISetting").getString("ChatGPTAPIKey");
+        MidjourneyAPIKey = config.getJSONObject("AISetting").getString("MidJourneyAPIKey");
+        IdeogramAPIKey = config.getJSONObject("AISetting").getString("IdeogramAPIKey");
+        SunoAPIKey = config.getJSONObject("AISetting").getString("SunoAPIKey");
+        RolePlayAPIKey = config.getJSONObject("AISetting").getString("RolePlayGPTAPIKey");
+
+        model = config.getJSONObject("AISetting").getJSONObject("ChatGPT").getString("model");
+        chatUrl = config.getJSONObject("AISetting").getJSONObject("ChatGPT").getString("url");
+        pictureUrl = config.getJSONObject("AISetting").getJSONObject("PictureAI").getJSONObject("DALLE3").getString("url");
+        listeningChannelID = config.getString("ListeningChannelID");
+        mjUrl = config.getJSONObject("AISetting").getJSONObject("PictureAI").getJSONObject("MidJourney").getString("url");
+        prompt = config.getJSONObject("AISetting").getJSONObject("ChatGPT").getString("prompt");
+        clientID = config.getJSONObject("discord").getString("clientID");
+        catModel = config.getJSONObject("AISetting").getJSONObject("CatChat").getString("model");
+        catPrompt = config.getJSONObject("AISetting").getJSONObject("CatChat").getString("prompt1");
+        catPrompt2 = config.getJSONObject("AISetting").getJSONObject("CatChat").getString("prompt2");
+        catUrl = config.getJSONObject("AISetting").getJSONObject("CatChat").getString("url");
+        maxHistory = config.getJSONObject("AISetting").getInt("MaxHistory");
+        ideogramModel = config.getJSONObject("AISetting").getJSONObject("PictureAI").getJSONObject("Ideogram").getString("model");
+        ideogramUrl = config.getJSONObject("AISetting").getJSONObject("PictureAI").getJSONObject("Ideogram").getString("url");
+        sunoUrl = config.getJSONObject("suno").getString("url");
+
+        whitelistedServer = new ArrayList<>();
+        JSONArray wja = config.getJSONObject("discord").getJSONArray("whitelistedChannelID");
+        for (int i = 0;i < wja.length();i++){
+            whitelistedServer.add(wja.getString(i));
+        }
+
     }
 }
