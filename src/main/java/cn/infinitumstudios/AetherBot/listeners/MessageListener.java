@@ -186,6 +186,14 @@ public class MessageListener extends ListenerAdapter
             channel.sendMessage("999").queue();
         }
 
+        if (content.equals("!time")){
+            DateFormat bjDateFormat = new SimpleDateFormat(patterStr);
+            bjDateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
+            channel.sendMessage("<@"+ message.getAuthor().getId() +"> \n"+
+                    "现在时间是，上海时间: " + bjDateFormat.format(getCurrentTime())+ "\n" +
+                    "Current time (Shanghai, China): " + bjDateFormat.format(getCurrentTime())).queue();
+        }
+
         if (content.startsWith("!chat ") || content.startsWith("!c ")) {
 
             // 请把此处修改为你的名字

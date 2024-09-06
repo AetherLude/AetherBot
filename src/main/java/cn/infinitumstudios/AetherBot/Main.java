@@ -1,4 +1,5 @@
 // 请注意，使用前千万要调整代码后使用，直接使用100%跑不起来!!!
+// 代码主要集中在 listeners/MessageListener.java 里面！
 
 package cn.infinitumstudios.AetherBot;
 
