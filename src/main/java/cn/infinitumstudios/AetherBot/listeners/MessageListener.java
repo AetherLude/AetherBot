@@ -19,6 +19,7 @@ import java.util.*;
 
 public class MessageListener extends ListenerAdapter
 {
+    String botversion = "1.3.3";
     MessageChannel channel;
     String ChatGPTAPIKey, MidjourneyAPIKey, IdeogramAPIKey, SunoAPIKey, RolePlayAPIKey;
     String model;
@@ -189,9 +190,10 @@ public class MessageListener extends ListenerAdapter
         if (content.equals("!time")){
             DateFormat bjDateFormat = new SimpleDateFormat(patterStr);
             bjDateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
+            String currentTime = bjDateFormat.format(getCurrentTime());
             channel.sendMessage("<@"+ message.getAuthor().getId() +"> \n"+
-                    "现在时间是，上海时间: " + bjDateFormat.format(getCurrentTime())+ "\n" +
-                    "Current time (Shanghai, China): " + bjDateFormat.format(getCurrentTime())).queue();
+                    "现在时间是上海时间: " + currentTime + "\n" +
+                    "Current time (Shanghai, China): " + currentTime).queue();
         }
 
         if (content.startsWith("!chat ") || content.startsWith("!c ")) {
@@ -714,7 +716,7 @@ public class MessageListener extends ListenerAdapter
 
         if (content.equals("!aethersversion")) {
             channel.sendMessage(
-                    "版本 1.3.2\n"+
+                    "版本 " + botversion + "\n"+
                             "问题修复\n"+
                             "过往版本更新：\n"+
                             "当文本长度大于2000时发送回复txt文件\n"+
@@ -722,6 +724,14 @@ public class MessageListener extends ListenerAdapter
                             "增加了新的图片生成模型：ideogram, 输入 !idg <提示词> 即可调用\n" +
                             "输入/help 即可获取完整指令列表"
                     ).queue();
+        }
+
+        if (content.equals("!info")){
+            channel.sendMessage("AetherBot Version "+ botversion + "\n"+
+                    "GPT聊天模型: " + model + "\n"+
+                    "Roleplay聊天模型: " + catModel + "\n"+
+                    "画图模型: " + "Midjourney"  + ", " + "DALL-E·3" + ", " + "Ideogram-" + ideogramModel +"\n"+
+                    "音乐制作模型: " + "Suno").queue();
         }
     }
 
@@ -920,7 +930,7 @@ public class MessageListener extends ListenerAdapter
         file.delete();
     }
 
-    public void reloadConfig(JSONObject config){
+    public void reloadConfig(JSONObject config) throws Exception{
 
         database.put("config", config);
 

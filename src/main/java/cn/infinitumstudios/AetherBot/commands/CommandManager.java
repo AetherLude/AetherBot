@@ -82,7 +82,7 @@ public class CommandManager extends ListenerAdapter {
         }
     }
 
-    public void reloadConfig(JSONObject config){
+    public void reloadConfig(JSONObject config) throws Exception{
         this.config = config;
     }
 }

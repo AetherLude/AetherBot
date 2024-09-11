@@ -67,7 +67,7 @@ public class Main {
                                 "Aethers深井机器人").queue();
             }
         } catch (Exception e){
-            System.err.println("[Error] 在修改机器人名称的时候出现问题");
+            System.err.println("[ERROR] 在修改机器人名称的时候出现问题");
             e.printStackTrace();
         }
 
@@ -81,8 +81,18 @@ public class Main {
                     messageListener.setListeningChannel(input);
                 } else if (input.equals("!reload")){
                     JSONObject reloadConfig = new JSONObject(readfile(new File("./config.json")));
-                    commandManager.reloadConfig(reloadConfig);
-                    messageListener.reloadConfig(reloadConfig);
+                    boolean error = false;
+                    try {
+                        commandManager.reloadConfig(reloadConfig);
+                        messageListener.reloadConfig(reloadConfig);
+                    } catch (Exception e){
+                        System.err.println("[ERROR] 重载程序配置文件时出现错误");
+                        error = true;
+                        e.printStackTrace();
+                    }
+                    if (!error){
+                        System.out.println("[INFO] 重载程序配置文件成功!");
+                    }
                 }
             } else {
                 Objects.requireNonNull(api.getTextChannelById(config.getString("ListeningChannelID"))).sendMessage(input).queue();
